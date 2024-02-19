@@ -12,6 +12,7 @@
 typedef struct {
     pid_t pid;
     char cmdline[1054];
+    float cpu_usage;
     long utime;  // Temps d'exécution en mode utilisateur
     long stime;  // Temps d'exécution en mode système
     long rss;    // Taille de la mémoire résidente

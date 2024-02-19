@@ -12,6 +12,11 @@ void init_screen() {
     cbreak();
     noecho();
     keypad(stdscr, TRUE);
+
+    init_pair(1, COLOR_CYAN, COLOR_BLACK); // Titres
+    init_pair(2, COLOR_GREEN, COLOR_BLACK); // Utilisation CPU basse
+    init_pair(3, COLOR_RED, COLOR_BLACK); // Utilisation CPU haute
+    init_pair(4, COLOR_YELLOW, COLOR_BLACK); // Utilisation mémoire élevée
 }
 
 int main() {

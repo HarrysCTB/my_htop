@@ -75,7 +75,18 @@ void get_process_info(ProcessInfo* process, char* pid) {
 void display_process(ProcessInfo* process) {
     struct passwd *pw = getpwuid(process->uid);
     char *username = pw ? pw->pw_name : "unknown";
-    mvprintw(3 + process->pid, 0, "%5d %-20s %5ld %10ld %8s %3d %c %10ld %-20s", process->pid, process->cmdline, process->utime + process->stime, process->rss, username, process->num_threads, process->state, process->start_time, process->exe_path);
+
+    // Choisissez la paire de couleurs en fonction de l'utilisation de la CPU
+    int color_pair = process->cpu_usage > 50 ? 3 : 2;
+    attron(COLOR_PAIR(color_pair));
+
+    // Votre code d'affichage ici
+    mvprintw(3 + process->pid, 0, "%5d %-20s %5ld %10ld %8s %3d %c %10ld %-20s",
+             process->pid, process->cmdline, process->utime + process->stime,
+             process->rss, username, process->num_threads, process->state,
+             process->start_time, process->exe_path);
+
+    attroff(COLOR_PAIR(color_pair));
 }
 
 void display_processes() {
