@@ -3,7 +3,7 @@ CFLAGS = -Wall -Wextra -Werror -g3
 LIBS = -lncurses
 SRC = $(wildcard src/*.c)
 OBJ = $(SRC:.c=.o)
-EXEC = mon_htop
+EXEC = my_htop
 
 all: $(EXEC)
 
