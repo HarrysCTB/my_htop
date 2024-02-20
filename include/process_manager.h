@@ -24,7 +24,7 @@ typedef struct {
 } ProcessInfo;
 
 void get_process_info(ProcessInfo* process, char* pid);
-void sort_processes(ProcessInfo* processes, int num_processes);
+void sort_processes(ProcessInfo* processes, int num_processes, int (*compare)(const void*, const void*));
 void display_process(ProcessInfo* process);
 void display_processes();
 

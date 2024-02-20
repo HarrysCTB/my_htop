@@ -4,8 +4,20 @@ int compare_processes(const void* a, const void* b) {
     return ((ProcessInfo*)a)->pid - ((ProcessInfo*)b)->pid;
 }
 
-void sort_processes(ProcessInfo* processes, int num_processes) {
-    qsort(processes, num_processes, sizeof(ProcessInfo), compare_processes);
+int compare_processes_by_pid(const void* a, const void* b) {
+    return ((ProcessInfo*)a)->pid - ((ProcessInfo*)b)->pid;
+}
+
+int compare_processes_by_cpu(const void* a, const void* b) {
+    return ((ProcessInfo*)a)->utime + ((ProcessInfo*)a)->stime - ((ProcessInfo*)b)->utime - ((ProcessInfo*)b)->stime;
+}
+
+int compare_processes_by_memory(const void* a, const void* b) {
+    return ((ProcessInfo*)a)->rss - ((ProcessInfo*)b)->rss;
+}
+
+void sort_processes(ProcessInfo* processes, int num_processes, int (*compare)(const void*, const void*)) {
+    qsort(processes, num_processes, sizeof(ProcessInfo), compare);
 }
 
 void get_process_info(ProcessInfo* process, char* pid) {
@@ -100,22 +112,26 @@ void display_processes() {
     int max_y, max_x;
 
     start_color();
-    init_pair(1, COLOR_CYAN, COLOR_BLACK);
+    init_pair(1, COLOR_CYAN, COLOR_BLACK); // Titres
+    init_pair(2, COLOR_GREEN, COLOR_BLACK); // Utilisation CPU basse
+    init_pair(3, COLOR_RED, COLOR_BLACK); // Utilisation CPU haute
+    init_pair(4, COLOR_YELLOW, COLOR_BLACK);
 
     clear();
+    getmaxyx(stdscr, max_y, max_x); // stdscr est la fenêtre standard de Ncurses
+
     attron(COLOR_PAIR(1));
+    if (max_x) {}
+    mvprintw(max_y - 3, 0, "Appuyez sur 1, 2 ou 3 pour trier par ID, utilisation CPU ou mémoire, puis appuyez sur ESPACE pour rafraîchir.");
+    mvprintw(max_y - 2, 0, "Appuyez sur 'q' pour quitter.");
+
     mvprintw(0, 0, "%5s %-20s %5s %10s %8s %3s %5s %10s %-20s", "PID", "Nom du processus", "CPU", "Mémoire", "Utilisateur", "Thr", "Etat", "Démarrage", "Exe");
     mvprintw(2, 0, "------------------------------------------------------------------------------------------------------------------");
     attroff(COLOR_PAIR(1));
-    getmaxyx(stdscr, max_y, max_x); // stdscr est la fenêtre standard de Ncurses
-    // Afficher le message d'instruction en bas
-    if (max_x > 0) {}
-    mvprintw(max_y - 1, 0, "Appuyez sur ESPACE pour rafraîchir, 'q' pour quitter.");
 
     if ((dir = opendir("/proc")) != NULL) {
         while ((ent = readdir(dir)) != NULL) {
-            if (ent->d_type == DT_DIR && strspn(ent->d_name, "0123456789") == strlen(ent->d_name)) {
-                printf("Lecture du répertoire du processus : %s\n", ent->d_name);  // Ajout de cette ligne
+ if (ent->d_type == DT_DIR && strspn(ent->d_name, "0123456789") == strlen(ent->d_name)) {
                 get_process_info(&processes[num_processes], ent->d_name);
                 ++num_processes;
             }
@@ -123,7 +139,24 @@ void display_processes() {
         closedir(dir);
     }
 
-    sort_processes(processes, num_processes);
+    nodelay(stdscr, TRUE); // Ne pas attendre l'entrée de l'utilisateur
+    int option = getch() - '0'; // Convertir le caractère en nombre
+    nodelay(stdscr, FALSE); // Retourner à l'attente de l'entrée de l'utilisateur
+
+    switch (option) {
+        case 1:
+            sort_processes(processes, num_processes, compare_processes_by_pid);
+            break;
+        case 2:
+            sort_processes(processes, num_processes, compare_processes_by_cpu);
+            break;
+        case 3:
+            sort_processes(processes, num_processes, compare_processes_by_memory);
+            break;
+        default:
+            sort_processes(processes, num_processes, compare_processes_by_pid);
+            break;
+    }
 
     for (int i = 0; i < num_processes; ++i) {
         display_process(&processes[i]);
