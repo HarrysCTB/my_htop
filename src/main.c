@@ -24,8 +24,10 @@ int main() {
     display_processes();
     while (1) {
         int ch = getch();
-        if (ch == 'q') break; // Quitter avec 'q'
-        display_processes(); // Rafraîchir l'affichage pour toute autre touche
+         if (ch == 'q' || ch == 'Q') break;  // Quitter avec 'q'
+         if (ch == ' ') { // Si la touche espace est pressée
+            display_processes(); // Rafraîchissez l'affichage des processus
+        }
     }
     endwin();
     return 0;

@@ -67,7 +67,8 @@ void get_process_info(ProcessInfo* process, char* pid) {
 
     // Lire le lien exe
     snprintf(path, sizeof(path), "/proc/%s/exe", pid);
-    if (readlink(path, exe_path, sizeof(exe_path)) != -1) {
+    memset(exe_path, 0, sizeof(exe_path));  // Initialise exe_path à zéro
+    if (readlink(path, exe_path, sizeof(exe_path) - 1) != -1) {  // Laisse de la place pour '\0'
         strcpy(process->exe_path, exe_path);
     }
 }
@@ -81,10 +82,12 @@ void display_process(ProcessInfo* process) {
     attron(COLOR_PAIR(color_pair));
 
     // Votre code d'affichage ici
-    mvprintw(3 + process->pid, 0, "%5d %-20s %5ld %10ld %8s %3d %c %10ld %-20s",
-             process->pid, process->cmdline, process->utime + process->stime,
-             process->rss, username, process->num_threads, process->state,
-             process->start_time, process->exe_path);
+    static int line = 3; // Démarrez l'affichage à partir de la 3ème ligne, par exemple
+    mvprintw(line++, 0, "%5d %-20s %5ld %10ld %8s %3d %c %10ld %-20s",
+            process->pid, process->cmdline, process->utime + process->stime,
+            process->rss, username, process->num_threads, process->state,
+            process->start_time, process->exe_path);
+
 
     attroff(COLOR_PAIR(color_pair));
 }
@@ -94,6 +97,7 @@ void display_processes() {
     struct dirent *ent;
     ProcessInfo processes[1024];
     int num_processes = 0;
+    int max_y, max_x;
 
     start_color();
     init_pair(1, COLOR_CYAN, COLOR_BLACK);
@@ -103,10 +107,15 @@ void display_processes() {
     mvprintw(0, 0, "%5s %-20s %5s %10s %8s %3s %5s %10s %-20s", "PID", "Nom du processus", "CPU", "Mémoire", "Utilisateur", "Thr", "Etat", "Démarrage", "Exe");
     mvprintw(2, 0, "------------------------------------------------------------------------------------------------------------------");
     attroff(COLOR_PAIR(1));
+    getmaxyx(stdscr, max_y, max_x); // stdscr est la fenêtre standard de Ncurses
+    // Afficher le message d'instruction en bas
+    if (max_x > 0) {}
+    mvprintw(max_y - 1, 0, "Appuyez sur ESPACE pour rafraîchir, 'q' pour quitter.");
 
     if ((dir = opendir("/proc")) != NULL) {
         while ((ent = readdir(dir)) != NULL) {
             if (ent->d_type == DT_DIR && strspn(ent->d_name, "0123456789") == strlen(ent->d_name)) {
+                printf("Lecture du répertoire du processus : %s\n", ent->d_name);  // Ajout de cette ligne
                 get_process_info(&processes[num_processes], ent->d_name);
                 ++num_processes;
             }
