@@ -20,6 +20,24 @@ void sort_processes(ProcessInfo* processes, int num_processes, int (*compare)(co
     qsort(processes, num_processes, sizeof(ProcessInfo), compare);
 }
 
+int get_processes(ProcessInfo* processes) {
+    DIR *dir;
+    struct dirent *ent;
+    int num_processes = 0;
+
+    if ((dir = opendir("/proc")) != NULL) {
+        while ((ent = readdir(dir)) != NULL) {
+            if (ent->d_type == DT_DIR && strspn(ent->d_name, "0123456789") == strlen(ent->d_name)) {
+                get_process_info(&processes[num_processes], ent->d_name);
+                ++num_processes;
+            }
+        }
+        closedir(dir);
+    }
+
+    return num_processes;
+}
+
 void get_process_info(ProcessInfo* process, char* pid) {
     char path[1054], cmdline[1054], stat[1054], status[1054], exe_path[1054];
     FILE *fp;
@@ -85,25 +103,6 @@ void get_process_info(ProcessInfo* process, char* pid) {
     }
 }
 
-void display_process(ProcessInfo* process) {
-    struct passwd *pw = getpwuid(process->uid);
-    char *username = pw ? pw->pw_name : "unknown";
-
-    // Choisissez la paire de couleurs en fonction de l'utilisation de la CPU
-    int color_pair = process->cpu_usage > 50 ? 3 : 2;
-    attron(COLOR_PAIR(color_pair));
-
-    // Votre code d'affichage ici
-    static int line = 3; // Démarrez l'affichage à partir de la 3ème ligne, par exemple
-    mvprintw(line++, 0, "%5d %-20s %5ld %10ld %8s %3d %c %10ld %-20s",
-            process->pid, process->cmdline, process->utime + process->stime,
-            process->rss, username, process->num_threads, process->state,
-            process->start_time, process->exe_path);
-
-
-    attroff(COLOR_PAIR(color_pair));
-}
-
 void display_processes() {
     DIR *dir;
     struct dirent *ent;
@@ -112,26 +111,32 @@ void display_processes() {
     int max_y, max_x;
 
     start_color();
-    init_pair(1, COLOR_CYAN, COLOR_BLACK); // Titres
-    init_pair(2, COLOR_GREEN, COLOR_BLACK); // Utilisation CPU basse
-    init_pair(3, COLOR_RED, COLOR_BLACK); // Utilisation CPU haute
-    init_pair(4, COLOR_YELLOW, COLOR_BLACK);
+    init_pair(1, COLOR_CYAN, COLOR_BLACK);
 
     clear();
     getmaxyx(stdscr, max_y, max_x); // stdscr est la fenêtre standard de Ncurses
 
     attron(COLOR_PAIR(1));
-    if (max_x) {}
-    mvprintw(max_y - 3, 0, "Appuyez sur 1, 2 ou 3 pour trier par ID, utilisation CPU ou mémoire, puis appuyez sur ESPACE pour rafraîchir.");
-    mvprintw(max_y - 2, 0, "Appuyez sur 'q' pour quitter.");
-
-    mvprintw(0, 0, "%5s %-20s %5s %10s %8s %3s %5s %10s %-20s", "PID", "Nom du processus", "CPU", "Mémoire", "Utilisateur", "Thr", "Etat", "Démarrage", "Exe");
-    mvprintw(2, 0, "------------------------------------------------------------------------------------------------------------------");
+    mvprintw(0, 0, "Appuyez sur 1, 2 ou 3 pour trier par ID, utilisation CPU ou mémoire, puis appuyez sur ESPACE pour rafraîchir.");
+    mvprintw(1, 0, "Appuyez sur 'q' pour quitter.");
     attroff(COLOR_PAIR(1));
+
+    attron(COLOR_PAIR(1)); // Change la couleur du texte
+    mvprintw(3, 0, "%5s %-20s %5s %10s %8s %3s %5s %10s %-20s", "PID", "Nom du processus", "CPU", "Mémoire", "Utilisateur", "Thr", "Etat", "Démarrage", "Exe");
+    mvprintw(5, 0, "------------------------------------------------------------------------------------------------------------------");
+    attroff(COLOR_PAIR(1)); // Réinitialise la couleur du texte
+
+    // Créez une nouvelle fenêtre pour les informations du processus
+    int height = max_y - 6;
+    int width = max_x;
+    WINDOW *win = newwin(height, width, 6, 0);
+
+    // Activez le défilement
+    scrollok(win, TRUE);
 
     if ((dir = opendir("/proc")) != NULL) {
         while ((ent = readdir(dir)) != NULL) {
- if (ent->d_type == DT_DIR && strspn(ent->d_name, "0123456789") == strlen(ent->d_name)) {
+            if (ent->d_type == DT_DIR && strspn(ent->d_name, "0123456789") == strlen(ent->d_name)) {
                 get_process_info(&processes[num_processes], ent->d_name);
                 ++num_processes;
             }
@@ -140,27 +145,50 @@ void display_processes() {
     }
 
     nodelay(stdscr, TRUE); // Ne pas attendre l'entrée de l'utilisateur
-    int option = getch() - '0'; // Convertir le caractère en nombre
+    int option = getch(); // Convertir le caractère en nombre
     nodelay(stdscr, FALSE); // Retourner à l'attente de l'entrée de l'utilisateur
 
     switch (option) {
-        case 1:
-            sort_processes(processes, num_processes, compare_processes_by_pid);
-            break;
-        case 2:
-            sort_processes(processes, num_processes, compare_processes_by_cpu);
-            break;
-        case 3:
-            sort_processes(processes, num_processes, compare_processes_by_memory);
-            break;
-        default:
-            sort_processes(processes, num_processes, compare_processes_by_pid);
-            break;
-    }
+    case 'A':
+    case 'a':
+        sort_processes(processes, num_processes, compare_processes_by_pid);
+        break;
+    case 'Z':
+    case 'z':
+        sort_processes(processes, num_processes, compare_processes_by_cpu);
+        break;
+    case 'E':
+    case 'e':
+        sort_processes(processes, num_processes, compare_processes_by_memory);
+        break;
+    default:
+        break;
+}
 
     for (int i = 0; i < num_processes; ++i) {
-        display_process(&processes[i]);
+        display_process(&processes[i], win);
     }
 
-    refresh();
+    wrefresh(win); // Rafraîchir la fenêtre
+}
+
+void display_process(ProcessInfo* process, WINDOW *win) {
+    struct passwd *pw = getpwuid(process->uid);
+    char *username = pw ? pw->pw_name : "unknown";
+    int color_pair;
+
+    // Choisissez la paire de couleurs en fonction de l'utilisation de la CPU
+    if (process->cpu_usage >= 30) {
+        color_pair = 3; // Rouge pour une utilisation élevée du CPU
+    } else if (process->cpu_usage >= 10) {
+        color_pair = 4; // Jaune pour une utilisation moyenne du CPU
+    } else {
+        color_pair = 2; // Vert pour une faible utilisation du CPU
+    }
+    wattron(win, COLOR_PAIR(color_pair));
+    wprintw(win, "%5d %-20s %5ld %10ld %8s %3d    %c %10ld    %-20s\n",
+            process->pid, process->cmdline, process->utime + process->stime,
+            process->rss, username, process->num_threads, process->state,
+            process->start_time, process->exe_path);
+    wattroff(win, COLOR_PAIR(color_pair));
 }

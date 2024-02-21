@@ -10,6 +10,9 @@ all: $(EXEC)
 $(EXEC): $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
+test: all
+	@valgrind ./my_htop
+
 clean:
 	rm -f $(OBJ) $(EXEC)
 
